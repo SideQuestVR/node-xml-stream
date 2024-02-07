@@ -62,6 +62,8 @@ var Parser = function (_Writable) {
 		_this.buffer = '';
 		_this.pos = 0;
 		_this.tagType = TAG_TYPE.NONE;
+		_this.oneback = null;
+		_this.twoback = null;
 		return _this;
 	}
 
@@ -69,9 +71,10 @@ var Parser = function (_Writable) {
 		key: '_write',
 		value: function _write(chunk, encoding, done) {
 			chunk = typeof chunk !== 'string' ? chunk.toString() : chunk;
+			var c = null;
 			for (var i = 0; i < chunk.length; i++) {
-				var c = chunk[i];
-				var prev = this.buffer[this.pos - 1];
+				c = chunk[i];
+				var prev = this.oneback; // this.buffer[this.pos - 1];
 				this.buffer += c;
 				this.pos++;
 
@@ -88,10 +91,10 @@ var Parser = function (_Writable) {
 						if (prev === '<' && c === '/') {
 							this._onCloseTagStart();
 						};
-						if (this.buffer[this.pos - 3] === '<' && prev === '!' && c === '[') {
+						if (this.twoback === '<' && prev === '!' && c === '[') {
 							this._onCDATAStart();
 						};
-						if (this.buffer[this.pos - 3] === '<' && prev === '!' && c === '-') {
+						if (this.twoback === '<' && prev === '!' && c === '-') {
 							this._onCommentStart();
 						};
 						if (c === '>') {
@@ -111,9 +114,11 @@ var Parser = function (_Writable) {
 						break;
 
 					case STATE.IGNORE_COMMENT:
-						if (this.buffer[this.pos - 3] === '-' && prev === '-' && c === '>') this._onCommentEnd();
+						if (this.twoback === '-' && prev === '-' && c === '>') this._onCommentEnd();
 						break;
 				}
+				this.twoback = this.oneback;
+				this.oneback = c;
 			}
 			done();
 		}
@@ -122,6 +127,7 @@ var Parser = function (_Writable) {
 		value: function _endRecording() {
 			var rec = this.buffer.slice(1, this.pos - 1).trim();
 			this.buffer = this.buffer.slice(-1); // Keep last item in buffer for prev comparison in main loop.
+			this.twoback = null;
 			this.pos = 1;
 			rec = rec.charAt(rec.length - 1) === '/' ? rec.slice(0, -1) : rec;
 			rec = rec.charAt(rec.length - 1) === '>' ? rec.slice(0, -2) : rec;
@@ -146,10 +152,10 @@ var Parser = function (_Writable) {
 			    name = _parseTagString2.name,
 			    attributes = _parseTagString2.attributes;
 
-			if (this.tagType & TAG_TYPE.OPENING == TAG_TYPE.OPENING) {
+			if ((this.tagType & TAG_TYPE.OPENING) == TAG_TYPE.OPENING) {
 				this.emit(EVENTS.OPEN_TAG, name, attributes);
 			}
-			if (this.tagType & TAG_TYPE.CLOSING == TAG_TYPE.CLOSING) {
+			if ((this.tagType & TAG_TYPE.CLOSING) == TAG_TYPE.CLOSING) {
 				this.emit(EVENTS.CLOSE_TAG, name, attributes);
 			}
 

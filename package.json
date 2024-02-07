@@ -5,8 +5,8 @@
 	"main": "dist/index.js",
 	"scripts": {
 		"test": "mocha dist/**/*.spec.js",
-		"test:src": "mocha src/**/*.spec.js --compilers js:babel-core/register --watch",
-		"test:src:inspect": "mocha src/**/*.spec.js --compilers js:babel-core/register --watch --inspect-brk",
+		"test:src": "mocha src/**/*.spec.js --require babel-core/register --watch",
+		"test:src:inspect": "mocha src/**/*.spec.js --require js:babel-core/register --watch --inspect-brk",
 		"build": "babel src --out-dir dist",
 		"build:watch": "npm run build -- -w",
 		"lint": "eslint ./src/**",

@@ -41,13 +41,16 @@ export default class Parser extends Writable {
 		this.buffer = '';
 		this.pos = 0;
 		this.tagType = TAG_TYPE.NONE;
+		this.oneback = null;
+		this.twoback = null;
 	}
 
 	_write(chunk, encoding, done) {
 		chunk = typeof chunk !== 'string' ? chunk.toString() : chunk;
+		let c = null;
 		for (let i = 0; i < chunk.length; i++) {
-			let c = chunk[i];
-			let prev = this.buffer[this.pos - 1];
+			c = chunk[i];
+			let prev = this.oneback;// this.buffer[this.pos - 1];
 			this.buffer += c;
 			this.pos++;
 
@@ -60,8 +63,8 @@ export default class Parser extends Writable {
 				case (STATE.TAG_NAME):
 					if (prev === '<' && c === '?') { this._onStartInstruction() };
 					if (prev === '<' && c === '/') { this._onCloseTagStart() };
-					if (this.buffer[this.pos - 3] === '<' && prev === '!' && c === '[') { this._onCDATAStart() };
-					if (this.buffer[this.pos - 3] === '<' && prev === '!' && c === '-') { this._onCommentStart() };
+					if (this.twoback === '<' && prev === '!' && c === '[') { this._onCDATAStart() };
+					if (this.twoback === '<' && prev === '!' && c === '-') { this._onCommentStart() };
 					if (c === '>') {
 						if (prev === "/") { this.tagType |= TAG_TYPE.CLOSING; }
 						this._onTagCompleted();
@@ -77,10 +80,11 @@ export default class Parser extends Writable {
 					break;
 
 				case (STATE.IGNORE_COMMENT):
-					if (this.buffer[this.pos - 3] === '-' && prev === '-' && c === '>') this._onCommentEnd();
+					if (this.twoback === '-' && prev === '-' && c === '>') this._onCommentEnd();
 					break;
 			}
-
+			this.twoback = this.oneback;
+			this.oneback = c;
 		}
 		done();
 	}
@@ -88,6 +92,7 @@ export default class Parser extends Writable {
 	_endRecording() {
 		let rec = this.buffer.slice(1, this.pos - 1).trim();
 		this.buffer = this.buffer.slice(-1); // Keep last item in buffer for prev comparison in main loop.
+		this.twoback = null;
 		this.pos = 1;
 		rec = rec.charAt(rec.length - 1) === '/' ? rec.slice(0, -1) : rec;
 		rec = rec.charAt(rec.length - 1) === '>' ? rec.slice(0, -2) : rec;
